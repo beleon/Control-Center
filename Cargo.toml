@@ -1,0 +1,14 @@
+[package]
+name = "control_center"
+version = "0.1.0"
+authors = ["Leon Sell <sellleon@fim.uni-passau.de>"]
+
+[dependencies]
+
+[[bin]]
+name = "control_center_server"
+path = "src/server.rs"
+
+[[bin]]
+name = "control_center_client"
+path = "src/client.rs"
