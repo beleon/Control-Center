@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Leon Sell <sellleon@fim.uni-passau.de>"]
 
 [dependencies]
+cursive = "0.9"
 
 [[bin]]
 name = "control_center_server"

@@ -67,10 +67,10 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
                 streams.remove(&id);
             }
             "Hello! I am Master" => {
-                streams.get(&id).unwrap().write_all(format!("Hello Master, your id is: {}\n", &id).as_bytes()).unwrap();
+                streams.get(&id).unwrap().write_all(format!("Server: Hello Master, your id is: {}\n", &id).as_bytes()).unwrap();
             }
             "Hello! I am Slave" => {
-                streams.get(&id).unwrap().write_all(format!("Hello Slave, your id is: {}\n", &id).as_bytes()).unwrap();
+                streams.get(&id).unwrap().write_all(format!("Server: Hello Slave, your id is: {}\n", &id).as_bytes()).unwrap();
             }
             _ => {
                 for stream in streams.values_mut() {
