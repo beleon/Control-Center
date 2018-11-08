@@ -1,8 +1,8 @@
 extern crate cursive;
 
-use cursive::align::HAlign;
 use cursive::view::Scrollable;
-use cursive::views::{EditView, Dialog, Panel, TextView};
+use cursive::view::ScrollStrategy::StickToBottom;
+use cursive::views::{IdView, ScrollView, BoxView, LinearLayout, DummyView, EditView, Dialog, Panel, TextView};
 use cursive::traits::*;
 use cursive::Cursive;
 use std::os::unix::net::UnixStream;
@@ -21,20 +21,30 @@ fn run_as_master() {
 
     let mut siv = Cursive::default();
 
-    // We can quit by pressing q
-    siv.add_global_callback('q', |s| s.quit());
+    let (tx_msg, rx_msg): (Sender<String>, Receiver<String>) = mpsc::channel();
 
-    // The text is too long to fit on a line, so the view will wrap lines,
-    // and will adapt to the terminal size.
-    siv.add_fullscreen_layer(
-        Dialog::around(Panel::new(TextView::new("").with_id("text").scrollable()))
-            .title("Control Center")
-            // This is the alignment for the button
-            .h_align(HAlign::Center)
-    );
-    // Show a popup on top of the view.
-
-
+    siv.add_fullscreen_layer(BoxView::with_full_screen(
+        Dialog::around(LinearLayout::vertical()
+            .child(Panel::new(TextView::new("").with_id("text").scrollable().with_id("scroll"))
+                .title("Control Center"))
+            .child(DummyView)
+            .child(EditView::new()
+                .on_submit(move |s, _t| {
+                    let input = format!("{}\n", s.call_on_id("input", |view: &mut EditView| {
+                        view.get_content()
+                    }).unwrap());
+                    if input != "\n" {
+                        s.call_on_id("input", |view: &mut EditView| {
+                            view.set_content("")
+                        }).unwrap();
+                        tx_msg.send(input).unwrap();
+                    }
+                })
+                .with_id("input")))
+    ));
+    siv.call_on_id("scroll", |scroll: &mut ScrollView<IdView<TextView>>| {
+        scroll.set_scroll_strategy(StickToBottom)
+    }).unwrap();
 
     let mut stream = UnixStream::connect(SOCKET_PATH).unwrap();
     stream.write_all(b"Hello! I am Master\n").unwrap();
@@ -49,6 +59,9 @@ fn run_as_master() {
                 s.call_on_id("text", |text: &mut TextView| {
                     text.append(format!("{}\n", msg))
                 });
+                s.call_on_id("scroll", |scroll: &mut ScrollView<IdView<TextView>>| {
+                    scroll.set_scroll_strategy(StickToBottom)
+                }).unwrap();
             }));
             if response == "Server: Bye" {
                 tx_siv.send(Box::new(|s: &mut Cursive| s.quit()));
@@ -57,20 +70,16 @@ fn run_as_master() {
         }
     });
 
-    let (tx_msg, rx_msg): (Sender<String>, Receiver<String>)
-                           = mpsc::channel();
-
     let t2 = thread::spawn(move || {
         loop {
             let msg = rx_msg.recv().unwrap();
             stream.write_all(msg.as_bytes()).unwrap();
-            if msg == ":exit\n" {
+            if msg == "/exit\n" {
                 break;
             }
         }
     });
 
-    add_name(&mut siv, tx_msg);
 
     siv.set_fps(10);
 
@@ -78,19 +87,6 @@ fn run_as_master() {
 
     t.join().unwrap();
     t2.join().unwrap();
-}
-
-fn add_name(s: &mut Cursive, tx_msg: Sender<String>) {
-    s.add_layer(Dialog::around(EditView::new()
-            .with_id("input")
-            .fixed_width(10))
-        .title("Enter a command")
-        .button("Ok", move |s| {
-            let input = format!("{}\n", s.call_on_id("input", |view: &mut EditView| {
-                view.get_content()
-            }).unwrap());
-            tx_msg.send(input).unwrap();
-        }));
 }
 
 fn run_as_slave() {
@@ -114,7 +110,7 @@ fn run_as_slave() {
         match io::stdin().read_line(&mut input) {
             Ok(_n) => {
                 stream.write_all(input.as_bytes()).unwrap();
-                if input == ":exit\n" {
+                if input == "/exit\n" {
                     break;
                 }
             }

@@ -39,7 +39,7 @@ fn handle_client(mut stream: UnixStream, tx_stream: Sender<(String, UnixStream)>
         let request = read_line(&mut stream);
         tx_msg.send((id.clone(), request.clone())).unwrap();
 
-        if request == ":exit" {
+        if request == "/exit" {
             break;
         }
     }
@@ -62,7 +62,7 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
             }
         }
         match msg.as_ref() {
-            ":exit" => {
+            "/exit" => {
                 streams.get(&id).unwrap().write_all(b"Server: Bye\n").unwrap();
                 streams.remove(&id);
             }
