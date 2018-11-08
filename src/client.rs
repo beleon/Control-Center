@@ -10,9 +10,9 @@ use std::io::prelude::*;
 use std::io;
 use std::thread;
 use std::env;
-use common::{SOCKET_PATH, read_line};
 use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
+use common::*;
 
 mod common;
 
@@ -45,7 +45,7 @@ fn run_as_master() {
     }).unwrap();
 
     let mut stream = UnixStream::connect(SOCKET_PATH).unwrap();
-    stream.write_all(b"Hello! I am Master\n").unwrap();
+    stream.write_all(format!("{}{}\n", CLIENT_HELLO, MASTER).as_bytes()).unwrap();
 
     let tx_siv = siv.cb_sink().clone();
     let mut s2 = stream.try_clone().unwrap();
@@ -61,7 +61,7 @@ fn run_as_master() {
                     scroll.set_scroll_strategy(StickToBottom)
                 }).unwrap();
             }));
-            if response == "Server: Bye" {
+            if response == format!("{}{}{}", SERVER_ID, CHAT_SEPARATOR, SERVER_FAREWELL) {
                 tx_siv.send(Box::new(|s: &mut Cursive| s.quit()));
                 break;
             }
@@ -72,7 +72,7 @@ fn run_as_master() {
         loop {
             let msg = rx_msg.recv().unwrap();
             stream.write_all(msg.as_bytes()).unwrap();
-            if msg == "/exit\n" {
+            if msg == format!("{}{}\n", CMD_PREFIX, EXIT_CMD) {
                 break;
             }
         }
@@ -96,19 +96,19 @@ fn run_as_slave() {
             loop {
                 let response = read_line(&mut s2);
                 println!("{}", &response);
-                if response == "Server: Bye" {
+                if response == format!("{}{}{}", SERVER_ID, CHAT_SEPARATOR, SERVER_FAREWELL) {
                     break;
                 }
             }
         });
     }
-    stream.write_all(b"Hello! I am Slave\n").unwrap();
+    stream.write_all(format!("{}{}\n", CLIENT_HELLO, SLAVE).as_bytes()).unwrap();
     loop {
         let mut input = String::new();
         match io::stdin().read_line(&mut input) {
             Ok(_n) => {
                 stream.write_all(input.as_bytes()).unwrap();
-                if input == "/exit\n" {
+                if input == format!("{}{}\n", CMD_PREFIX, EXIT_CMD) {
                     break;
                 }
             }

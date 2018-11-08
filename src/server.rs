@@ -6,7 +6,9 @@ use std::sync::{Arc, Mutex};
 use std::os::unix::net::{UnixStream, UnixListener};
 use std::io::Write;
 use std::fs::remove_file;
-use common::{SOCKET_PATH, read_line};
+use common::*;
+
+macro_rules! SERVER_HELLO {() => ("Hello {}, your id is: ")}
 
 mod common;
 
@@ -17,13 +19,13 @@ struct ClientCount {
 
 fn register(request: String, con: Arc<Mutex<ClientCount>>) -> Result<String, String> {
     let mut ul_cc = con.lock().unwrap();
-    if request == "Hello! I am Master" {
+    if request == format!("{}{}", CLIENT_HELLO, MASTER) {
         ul_cc.master += 1;
-        let id = format!("m-{}", ul_cc.master);
+        let id = format!("{}{}", MASTER_ID_PREFIX, ul_cc.master);
         return Ok(id);
-    } else if request == "Hello! I am Slave" {
+    } else if request == format!("{}{}", CLIENT_HELLO, SLAVE) {
         ul_cc.slave += 1;
-        let id = format!("s-{}", ul_cc.slave);
+        let id = format!("{}{}", SLAVE_ID_PREFIX, ul_cc.slave);
         return Ok(id);
     }
     Err("Invalid request".to_string())
@@ -40,7 +42,7 @@ fn handle_client(mut stream: UnixStream, tx_stream: Sender<(String, UnixStream)>
         let request = read_line(&mut stream);
         tx_msg.send((id.clone(), request.clone())).unwrap();
 
-        if request == "/exit" {
+        if request == format!{"{}{}", CMD_PREFIX, EXIT_CMD} {
             break;
         }
     }
@@ -62,30 +64,24 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
                 }
             }
         }
-        match msg.as_ref() {
-            "/exit" => {
-                streams.get(&id).unwrap().write_all(b"Server: Bye\n").unwrap();
-                streams.remove(&id);
+        if msg == format!("{}{}", CMD_PREFIX, EXIT_CMD) {
+            streams.get(&id).unwrap().write_all(format!("{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, SERVER_FAREWELL).as_bytes()).unwrap();
+            streams.remove(&id);
+        } else if msg == format!("{}{}", CLIENT_HELLO, MASTER) {
+            streams.get(&id).unwrap().write_all(format!("{}{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, format!(SERVER_HELLO!(), MASTER), &id).as_bytes()).unwrap();
+        } else if msg == format!("{}{}", CLIENT_HELLO, SLAVE) {
+            streams.get(&id).unwrap().write_all(format!("{}{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, format!(SERVER_HELLO!(), SLAVE),  &id).as_bytes()).unwrap();
+        } else {
+            for stream in streams.values_mut() {
+                stream.write_all(format!("{}{}{}\n", &id, CHAT_SEPARATOR, &msg).as_bytes()).unwrap();
             }
-            "Hello! I am Master" => {
-                streams.get(&id).unwrap().write_all(format!("Server: Hello Master, your id is: {}\n", &id).as_bytes()).unwrap();
-            }
-            "Hello! I am Slave" => {
-                streams.get(&id).unwrap().write_all(format!("Server: Hello Slave, your id is: {}\n", &id).as_bytes()).unwrap();
-            }
-            _ => {
-                for stream in streams.values_mut() {
-                    stream.write_all(format!("{}: {}\n", &id, &msg).as_bytes()).unwrap();
-                }
-            }
-
         }
         println!("id: {}, request: {}", id, msg);
     }
 }
 
 fn main() {
-    remove_file("socket").ok();
+    remove_file(SOCKET_PATH).ok();
     let con = Arc::new(Mutex::new(ClientCount {
         master: 0,
         slave: 0

@@ -2,6 +2,16 @@ use std::os::unix::net::UnixStream;
 use std::io::Read;
 
 pub static SOCKET_PATH: &'static str = "socket";
+pub static EXIT_CMD: &'static str = "exit";
+pub static CMD_PREFIX: &'static str = "/";
+pub static SERVER_ID: &'static str = "server";
+pub static CHAT_SEPARATOR: &'static str = ": ";
+pub static MASTER_ID_PREFIX: &'static str = "m-";
+pub static SLAVE_ID_PREFIX: &'static str = "s-";
+pub static CLIENT_HELLO: &'static str = "Hello! I am ";
+pub static SERVER_FAREWELL: &'static str = "Bye";
+pub static MASTER: &'static str = "Master";
+pub static SLAVE: &'static str = "Slave";
 
 pub fn read_line(stream: &mut UnixStream) -> String {
     let mut buffer = Vec::new();
