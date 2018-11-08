@@ -8,6 +8,7 @@ pub static DM_CMD: &'static str = "msg";
 pub static CMD_PREFIX: &'static str = "/";
 pub static SERVER_ID: &'static str = "server";
 pub static CHAT_SEPARATOR: &'static str = ": ";
+pub static DM_SEPARATOR: &'static str = " -> ";
 pub static MASTER_ID_PREFIX: &'static str = "m-";
 pub static SLAVE_ID_PREFIX: &'static str = "s-";
 pub static CLIENT_HELLO: &'static str = "Hello! I am ";

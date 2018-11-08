@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::os::unix::net::{UnixStream, UnixListener};
 use std::io::Write;
 use std::fs::remove_file;
+use std::vec::Vec;
 use common::*;
 
 macro_rules! SERVER_HELLO {() => ("Hello {}, your id is: ")}
@@ -51,6 +52,7 @@ fn handle_client(mut stream: UnixStream, tx_stream: Sender<(String, UnixStream)>
 
 fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(String, String)>) {
     let mut streams = HashMap::new();
+    let mut hist = Vec::new();
     loop {
         let (id, msg) = rx_msg.recv().unwrap();
         loop {
@@ -69,8 +71,16 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
             streams.remove(&id);
         } else if msg == format!("{}{}", CLIENT_HELLO, MASTER) {
             streams.get(&id).unwrap().write_all(format!("{}{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, format!(SERVER_HELLO!(), MASTER), &id).as_bytes()).unwrap();
+            for record in &hist {
+                let (h_id, h_msg) = record;
+                streams.get(&id).unwrap().write_all(format!("{}{}{}\n", &h_id, CHAT_SEPARATOR, &h_msg).as_bytes()).unwrap();
+            }
         } else if msg == format!("{}{}", CLIENT_HELLO, SLAVE) {
             streams.get(&id).unwrap().write_all(format!("{}{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, format!(SERVER_HELLO!(), SLAVE),  &id).as_bytes()).unwrap();
+            for record in &hist {
+                let (h_id, h_msg) = record;
+                streams.get(&id).unwrap().write_all(format!("{}{}{}\n", &h_id, CHAT_SEPARATOR, &h_msg).as_bytes()).unwrap();
+            }
         } else if msg == format!("{}{}", CMD_PREFIX, LIST_CMD) {
             streams.get(&id).unwrap().write_all(format!("{}{}{:?}\n", SERVER_ID, CHAT_SEPARATOR, streams.keys()).as_bytes()).unwrap();
         } else if msg.starts_with(&format!("{}{} ", CMD_PREFIX, DM_CMD)) {
@@ -78,8 +88,10 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
             let idx = rest.find(" ").unwrap();
             let recipient: String = rest.chars().take(idx).collect();
             let real_msg: String = rest.chars().skip(idx + 1).collect();
-            streams.get(&recipient).unwrap().write_all(format!("{}{}{}\n", &id, CHAT_SEPARATOR, &real_msg).as_bytes()).unwrap();
+            streams.get(&recipient).unwrap().write_all(format!("{}{}{}{}{}\n", &id, DM_SEPARATOR, &recipient, CHAT_SEPARATOR, &real_msg).as_bytes()).unwrap();
+            streams.get(&id).unwrap().write_all(format!("{}{}{}{}{}\n", &id, DM_SEPARATOR, &recipient, CHAT_SEPARATOR, &real_msg).as_bytes()).unwrap();
         } else {
+            &mut hist.push((id.clone(), msg.clone()));
             for stream in streams.values_mut() {
                 stream.write_all(format!("{}{}{}\n", &id, CHAT_SEPARATOR, &msg).as_bytes()).unwrap();
             }
