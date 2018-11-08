@@ -71,6 +71,14 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
             streams.get(&id).unwrap().write_all(format!("{}{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, format!(SERVER_HELLO!(), MASTER), &id).as_bytes()).unwrap();
         } else if msg == format!("{}{}", CLIENT_HELLO, SLAVE) {
             streams.get(&id).unwrap().write_all(format!("{}{}{}{}\n", SERVER_ID, CHAT_SEPARATOR, format!(SERVER_HELLO!(), SLAVE),  &id).as_bytes()).unwrap();
+        } else if msg == format!("{}{}", CMD_PREFIX, LIST_CMD) {
+            streams.get(&id).unwrap().write_all(format!("{}{}{:?}\n", SERVER_ID, CHAT_SEPARATOR, streams.keys()).as_bytes()).unwrap();
+        } else if msg.starts_with(&format!("{}{} ", CMD_PREFIX, DM_CMD)) {
+            let rest: String = msg.chars().skip(format!("{}{} ", CMD_PREFIX, DM_CMD).len()).collect(); // Pray that there is no unicode characters in preifx and dm string consts.
+            let idx = rest.find(" ").unwrap();
+            let recipient: String = rest.chars().take(idx).collect();
+            let real_msg: String = rest.chars().skip(idx + 1).collect();
+            streams.get(&recipient).unwrap().write_all(format!("{}{}{}\n", &id, CHAT_SEPARATOR, &real_msg).as_bytes()).unwrap();
         } else {
             for stream in streams.values_mut() {
                 stream.write_all(format!("{}{}{}\n", &id, CHAT_SEPARATOR, &msg).as_bytes()).unwrap();

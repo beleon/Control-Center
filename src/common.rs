@@ -3,6 +3,8 @@ use std::io::Read;
 
 pub static SOCKET_PATH: &'static str = "socket";
 pub static EXIT_CMD: &'static str = "exit";
+pub static LIST_CMD: &'static str = "list";
+pub static DM_CMD: &'static str = "msg";
 pub static CMD_PREFIX: &'static str = "/";
 pub static SERVER_ID: &'static str = "server";
 pub static CHAT_SEPARATOR: &'static str = ": ";
