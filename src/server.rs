@@ -5,6 +5,7 @@ use std::sync::mpsc;
 use std::sync::{Arc, Mutex};
 use std::os::unix::net::{UnixStream, UnixListener};
 use std::io::Write;
+use std::fs::remove_file;
 use common::{SOCKET_PATH, read_line};
 
 mod common;
@@ -84,6 +85,7 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
 }
 
 fn main() {
+    remove_file("socket").ok();
     let con = Arc::new(Mutex::new(ClientCount {
         master: 0,
         slave: 0

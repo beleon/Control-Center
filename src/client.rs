@@ -17,8 +17,6 @@ use std::sync::mpsc;
 mod common;
 
 fn run_as_master() {
-    // Read some long text from a file.
-
     let mut siv = Cursive::default();
 
     let (tx_msg, rx_msg): (Sender<String>, Receiver<String>) = mpsc::channel();
