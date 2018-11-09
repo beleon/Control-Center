@@ -10,6 +10,7 @@ use std::vec::Vec;
 use common::*;
 
 macro_rules! SERVER_HELLO {() => ("Hello {}, your id is: ")}
+const MAX_HIST_LENGTH: usize = 50;
 
 mod common;
 
@@ -92,6 +93,9 @@ fn handle_messages(rx_stream: Receiver<(String, UnixStream)>, rx_msg: Receiver<(
             streams.get(&id).unwrap().write_all(format!("{}{}{}{}{}\n", &id, DM_SEPARATOR, &recipient, CHAT_SEPARATOR, &real_msg).as_bytes()).unwrap();
         } else {
             &mut hist.push((id.clone(), msg.clone()));
+            if hist.len() > MAX_HIST_LENGTH {
+                &mut hist.remove(0);
+            }
             for stream in streams.values_mut() {
                 stream.write_all(format!("{}{}{}\n", &id, CHAT_SEPARATOR, &msg).as_bytes()).unwrap();
             }
